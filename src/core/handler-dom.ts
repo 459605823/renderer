@@ -1,30 +1,10 @@
+import {normalizeClass} from './utils';
+
 function shouldSetAsProps(el: HTMLElement, key: string) {
   // 需要排除只读属性
   // input.form特殊处理
   if (key === 'form' && el.tagName === 'INPUT') return;
   return key in el;
-}
-
-function normalizeClass(
-  className:
-    | string
-    | Record<string, boolean>
-    | Array<string | Record<string, boolean>>
-) {
-  const classArr = Array.isArray(className) ? className : [className];
-  let res = '';
-  classArr.forEach((cls) => {
-    if (typeof cls === 'string') {
-      res += ` ${cls}`;
-    } else {
-      for (const [key, value] of Object.entries(cls)) {
-        if (value) {
-          res += ` ${key}`;
-        }
-      }
-    }
-  });
-  return res.trim();
 }
 
 export default {
