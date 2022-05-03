@@ -1,3 +1,5 @@
+import {Fragment} from './index';
+
 export function normalizeClass(
   className:
     | string
@@ -21,6 +23,11 @@ export function normalizeClass(
 }
 
 export function unmount(vnode: VNODE) {
+  if (vnode.type === Fragment) {
+    // 当卸载的节点为Fragment时，只需要卸载其子节点
+    (vnode.children as VNODE[]).forEach((c) => unmount(c));
+    return;
+  }
   if (!vnode.el) return;
   const parent = vnode.el?.parentNode;
   if (parent) {
