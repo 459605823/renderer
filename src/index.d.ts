@@ -5,6 +5,7 @@ interface VNODE {
   children: string | VNODE[];
   props?: Record<string, any>;
   el?: IContainer;
+  key?: string;
 }
 
 interface IContainer extends HTMLElement {
