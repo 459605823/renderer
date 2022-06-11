@@ -1,5 +1,10 @@
 import {unmount, lis, resolveProps, hasPropsChanged} from './utils';
-import {reactive, effect, shallowReactive} from '@vue/reactivity';
+import {
+  reactive,
+  effect,
+  shallowReactive,
+  shallowReadonly,
+} from '@vue/reactivity';
 interface Options {
   createElement: (tag: string) => any;
 }
@@ -428,10 +433,11 @@ export default class Renderer {
   mountComponent(vnode: VNODE, container: IContainer, anchor: Node | null) {
     const componentOptions = vnode.type as ComponentOption;
     // 获取组件的渲染函数、数据以及生命周期函数
-    const {
+    let {
       render,
       data,
       props: propsOption,
+      setup,
       beforeCreate,
       created,
       beforeMount,
@@ -441,7 +447,7 @@ export default class Renderer {
     } = componentOptions;
     beforeCreate && beforeCreate();
     // 通过data函数得到原始数据，并调用reactive将其包装成响应式数据
-    const state = reactive(data ? data() : {});
+    const state = data ? reactive(data()) : null;
     const [props, attrs] = resolveProps(propsOption || {}, vnode.props || {});
     // 创建组件实例，包含与组件相关的状态信息
     const instance: ComponentInstance = {
@@ -453,6 +459,27 @@ export default class Renderer {
       // 组件所渲染的内容
       subTree: null,
     };
+    const emit = (event: string, ...payload: any[]) => {
+      // change -> onChange
+      const eventName = `on${event[0].toUpperCase() + event.slice(1)}`;
+      // 根据事件名称找到props中对应的事件处理函数
+      const handler = instance.props[eventName];
+      if (handler) {
+        handler(...payload);
+      } else {
+        console.error('事件不存在');
+      }
+    };
+    const setupContext = {attrs, emit} as unknown as setupContext;
+    // setup函数的props为只读
+    const setupResult = setup(shallowReadonly(instance.props), setupContext);
+    let setupState: null | Record<string, any> = null;
+    if (typeof setupResult === 'function') {
+      console.error('setup 函数返回渲染函数, render选项将被忽略');
+      render = setupResult as () => VNODE;
+    } else {
+      setupState = setupResult;
+    }
     vnode.component = instance;
     // 创建渲染上下文对象， 本质是组件实例的代理
     const renderContext = new Proxy(instance, {
@@ -462,6 +489,8 @@ export default class Renderer {
           return state[k];
         } else if (k in props) {
           return props[k];
+        } else if (setupState && k in setupState) {
+          return setupState[k as string];
         } else {
           console.error(`${String(k)}属性不存在`);
         }
@@ -473,6 +502,9 @@ export default class Renderer {
           return true;
         } else if (k in props) {
           props[k] = v;
+          return true;
+        } else if (setupState && k in setupState) {
+          setupState[k as string] = v;
           return true;
         } else {
           console.error(`${String(k)}属性不存在`);

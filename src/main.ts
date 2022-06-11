@@ -40,6 +40,11 @@ const MyComp: ComponentOption = {
       b: '1111',
     };
   },
+  setup() {
+    return {
+      c: 'ccc',
+    };
+  },
   mounted() {
     console.log(this.b);
     console.log(this.c);

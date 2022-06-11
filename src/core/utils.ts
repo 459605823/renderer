@@ -85,7 +85,8 @@ export function resolveProps(
   const attrs: Record<string, any> = {};
   for (const key in propsData) {
     // 如果为组件传递的props数据在组件自身的props选项中有定义，则为合法的props
-    if (key in options) {
+    // 以字符串on开头的props都添加到props数据中，保证事件处理函数可以找到
+    if (key in options || key.startsWith('on')) {
       props[key] = propsData[key];
     } else {
       // vue3中没有在props选项中定义的props数据将存储在attrs对象中
