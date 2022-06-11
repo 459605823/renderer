@@ -9,6 +9,20 @@ interface Options {
   createElement: (tag: string) => any;
 }
 
+let currentInstance: null | ComponentInstance = null;
+
+function setCurrentInstance(instance: ComponentInstance | null) {
+  currentInstance = instance;
+}
+
+export function onMounted(fn: () => void) {
+  if (currentInstance) {
+    currentInstance.mounted.push(fn);
+  } else {
+    console.error('onMounted函数只能在setup中使用');
+  }
+}
+
 // 文本节点类型标记
 export const Text = Symbol();
 // Fragment节点类型标记
@@ -449,6 +463,7 @@ export default class Renderer {
     // 通过data函数得到原始数据，并调用reactive将其包装成响应式数据
     const state = data ? reactive(data()) : null;
     const [props, attrs] = resolveProps(propsOption || {}, vnode.props || {});
+    const slots = vnode.children || {};
     // 创建组件实例，包含与组件相关的状态信息
     const instance: ComponentInstance = {
       // 组件自身的状态数据
@@ -458,6 +473,8 @@ export default class Renderer {
       isMounted: false,
       // 组件所渲染的内容
       subTree: null,
+      slots,
+      mounted: [],
     };
     const emit = (event: string, ...payload: any[]) => {
       // change -> onChange
@@ -470,9 +487,13 @@ export default class Renderer {
         console.error('事件不存在');
       }
     };
-    const setupContext = {attrs, emit} as unknown as setupContext;
+    const setupContext = {attrs, emit, slots};
+    // 在执行setup函数之前，将currentInstance设置为当前组件实例
+    setCurrentInstance(instance);
     // setup函数的props为只读
     const setupResult = setup(shallowReadonly(instance.props), setupContext);
+    // 执行完毕后，重置currentInstance
+    setCurrentInstance(null);
     let setupState: null | Record<string, any> = null;
     if (typeof setupResult === 'function') {
       console.error('setup 函数返回渲染函数, render选项将被忽略');
@@ -484,7 +505,9 @@ export default class Renderer {
     // 创建渲染上下文对象， 本质是组件实例的代理
     const renderContext = new Proxy(instance, {
       get(t, k, r) {
-        const {state, props} = t;
+        const {state, props, slots} = t;
+        // 支持通过$slots直接访问插槽内容
+        if (k === '$slots') return slots;
         if (state && k in state) {
           return state[k];
         } else if (k in props) {
@@ -526,6 +549,10 @@ export default class Renderer {
           this.patch(null, subTree, container, anchor);
           instance.isMounted = true;
           mounted && mounted.call(renderContext);
+          instance.mounted &&
+            instance.mounted.forEach((hook: Function) =>
+              hook.call(renderContext)
+            );
         } else {
           // 更新
           beforeUpdate && beforeUpdate.call(renderContext);

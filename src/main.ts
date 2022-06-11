@@ -1,5 +1,5 @@
 import './style.css';
-import Renderer, {Fragment} from './core';
+import Renderer, {Fragment, onMounted} from './core';
 import domHanlers from './core/handler-dom';
 
 const renderer = new Renderer(domHanlers);
@@ -41,6 +41,9 @@ const MyComp: ComponentOption = {
     };
   },
   setup() {
+    onMounted(() => {
+      console.log('onMounted');
+    });
     return {
       c: 'ccc',
     };

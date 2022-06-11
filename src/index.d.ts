@@ -4,7 +4,7 @@ interface setupContext {
   slots: any;
   emit: Function;
   attrs: Record<string, any>;
-  expose: Function;
+  expose?: Function;
 }
 
 interface ComponentOption {
